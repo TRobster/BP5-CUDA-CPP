@@ -1,19 +1,18 @@
-# bp5CUDA
+# bp5-CUDA-CPP
 
 A C++/CUDA rewrite of SEAS benchmark **BP5-QD** in 3-D, fusing the physics of
 `Thrase.jl/src/3D/3D_structured` with the factor-once solver architecture of
 `cudabasin/basin`.
 
 This is **Tier 1, step 1**: single-block SBP-SAT assembly of the elasticity
-operator `HM`, plus a sparse Cholesky factorisation. Nothing time-dependent yet.
+operator `HM`, plus a sparse Cholesky factorisation. I haven't done any time-dependent work yet!
 
-## Why factor instead of iterate
+## Why combine
+Throughout my work here at the University of Oregon, I've learned a plethora of knowledge from both of these instructors. Initially starting in the realm of hardware optimization and proper memory access techniques through Joseph McLaughlin's basin derivation, I observed the usefulness of integrating streamlined libraries such as Intel's MKL API. Moving through the summer, my work transitioned with Zac Cross, where I realized the importance of being inventive with the physics behind Professor Erickson's papers. Having observed these two worlds, I decided to try my best to combine these skillsets into this codebase. I took the knowledge from MKL's BLAS and built the basis for the usage of cuSPARSE BLAS for the linear algebra solving operations (one solve Cholesky + CG). On top of this, a lot of the physics in this codebase is derived directly from the block operator architecture that resides in the Thrase library.
 
-BP5-QD's operator is constant for the whole simulation. Only the right-hand side
-changes each step, through slip on the fault (face 0) and the affine remote
-load `Vp*t/2` on face 1. Thrase runs a full CG on 6.4M unknowns for every one of
-~1e5 ODE right-hand sides. Factoring once and reusing the factors turns each of
-those into two triangular solves. That is the entire point of this rewrite.
+## What's the goal? 
+
+Ultimately, this codebase created a workflow that bolstered my scientific computing skills through derivation of the physics behind Professor Erickson's benchmark papers. This is still a MASSIVE work in progress (still on 1D currently), however most of the code here is to attempt to build towards porting the full BP5-3D benchmark into CPP/CUDA. 
 
 ## Build
 
@@ -43,7 +42,7 @@ sbatch scripts/submit.sh 32
 | `--backend eigen\|cudss` | which factorisation |
 | `--dump DIR` | write `HM` as binary CSR for cross-checking against Julia |
 
-## What it does
+### What does this do
 
 ```
 .dat  ->  Params        parse the BP5 parameter file
@@ -54,7 +53,7 @@ sbatch scripts/submit.sh 32
       ->  factor+solve  Eigen LLT or cuDSS
 ```
 
-### Correspondence to `ops_bp5.jl`
+### References to Zac's code in `ops_bp5.jl`
 
 | here | Thrase |
 |---|---|
@@ -65,7 +64,7 @@ sbatch scripts/submit.sh 32
 | `Operators::S[i][j]` | `S11 .. S33`, `mode="bp5"` branch |
 | `Operators::HM` | `HM = HA + HS` |
 
-Face indices here are 0-based; Thrase's face *f* is our *f-1*.
+Julia is 1-based, in CPP its 0-based: Thrase's face *f* is *f-1*.
 
 | face | plane | physical | condition |
 |---|---|---|---|
@@ -109,11 +108,11 @@ field, `sbp_d2_var` gets called with a real coefficient vector instead of a
 constant one, and the scalar multiplies in `assemble_A` become diagonal-matrix
 multiplies. `sbp_d2_var` already takes a nodal coefficient array for this reason.
 
-**p = 2 only.** `Sbp1D::make` throws on anything else. The p = 4 operators drop
-in behind the same interface; nothing downstream is order-aware. BP5 accuracy
+**p = 2 only.** `Sbp1D::make` doesn't work on any other order of accuracy. The p = 4 operators drop
+in behind the same interface where nothing downstream is order-aware. BP5 accuracy
 will want p = 4, however for sanity checking (myself haha) and keeping simple, p = 2 will do for now.
 
-## Status — measured, on a login node
+## Status measured on that of a login node, not computation (GPU)
 
 All four checks pass at every size tried (N = 8, 12, 16, 24):
 
@@ -126,14 +125,14 @@ Cholesky  succeeds  =>  HM is symmetric positive definite
 solve     ||HM x - b||/||b|| ~ 1e-15
 ```
 
-Exact symmetry is the strong signal: it is a structural property, so it
+Exact Symmetry (This is probably the biggest victory here): it is a structural property, so it
 confirms the SAT signs and index transposes are consistent. The two `A`
 consistency tests pin down the volume operator, which symmetry alone does not
 constrain.
 
 ### Order of accuracy: the 1-D MMS test
 
-Those checks are all *consistency* checks: an operator of any order satisfies
+First test: an operator of any order satisfies
 them. Order of accuracy needs a problem with a known exact answer at every `h`,
 which means a source term. `make test_converge && ./test_converge` solves
 
@@ -153,7 +152,7 @@ and reports `r = mu*D2*u_exact + f`, zero in the continuum:
 ```
 
 Deliberately 1-D and scalar: it depends on `sbp1d.cpp` alone. This is no metrics, no
-`C` tensor, no SAT, no faces so this  rate localises to one file.
+`C` tensor, no SAT, no faces so this rate localises to one file.
 
 ### Solution error: `test_solution_cg` (this needs a GPU)
 
