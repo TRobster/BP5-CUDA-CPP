@@ -78,8 +78,8 @@ Face indices here are 0-based; Thrase's face *f* is our *f-1*.
 
 1. **The Dirichlet SAT uses transposed component indices** (`S[i][j]` takes
    `T[j][i]`) while the Neumann SAT uses natural ones (`S[i][j]` takes
-   `T[i][j]`). That is the adjoint term versus the direct term, not a typo.
-   Swap them and `HM` stops being symmetric.
+   `T[i][j]`). That is the adjoint term versus the direct term.
+   Swap these terms and `HM` stops being symmetric.
 2. **`BS` is orientation-neutral here** — both rows give `d/dq`, and the
    outward sign is applied per-face inside `T`. cudabasin's `bsx/bsy` bake the
    outward normal into the stencil instead. Do not copy those values across
@@ -111,7 +111,7 @@ multiplies. `sbp_d2_var` already takes a nodal coefficient array for this reason
 
 **p = 2 only.** `Sbp1D::make` throws on anything else. The p = 4 operators drop
 in behind the same interface; nothing downstream is order-aware. BP5 accuracy
-will want p = 4.
+will want p = 4, however for sanity checking (myself haha) and keeping simple, p = 2 will do for now.
 
 ## Status — measured, on a login node
 
@@ -131,7 +131,7 @@ confirms the SAT signs and index transposes are consistent. The two `A`
 consistency tests pin down the volume operator, which symmetry alone does not
 constrain.
 
-### Order of accuracy — the 1-D MMS test
+### Order of accuracy: the 1-D MMS test
 
 Those checks are all *consistency* checks: an operator of any order satisfies
 them. Order of accuracy needs a problem with a known exact answer at every `h`,
@@ -142,7 +142,7 @@ mu u'' + f = 0,   x in [-1,1],   f = cos(x) + x sin(x),   u = (3cos x + x sin x)
 ```
 
 and reports `r = mu*D2*u_exact + f`, zero in the continuum:
-
+(Check pullup.md for these results)
 ```
     N          h      ||r||_H    rate       max|r|    rate
     8       0.25   4.8768e-03       -   5.1758e-03       -
@@ -152,14 +152,14 @@ and reports `r = mu*D2*u_exact + f`, zero in the continuum:
   128    0.01562   1.9264e-05    2.00   2.0345e-05    2.00
 ```
 
-Deliberately 1-D and scalar: it depends on `sbp1d.cpp` alone — no metrics, no
-`C` tensor, no SAT, no faces — so a bad rate localises to one file.
+Deliberately 1-D and scalar: it depends on `sbp1d.cpp` alone. This is no metrics, no
+`C` tensor, no SAT, no faces so this  rate localises to one file.
 
-### Solution error — `test_solution_cg` (needs a GPU)
+### Solution error: `test_solution_cg` (this needs a GPU)
 
 `D2` alone is singular (`D2*1 = 0`, `D2*x = 0`), so the test above can only
-measure truncation error. Adding a Dirichlet SAT at both ends — mirroring
-`assemble.cpp` at one dimension, same `beta = 1, d = 3` penalty — gives an SPD
+measure truncation error. Adding a Dirichlet SAT at both ends. Which mirroring
+`assemble.cpp` at one dimension, same `beta = 1, d = 3` penalty gives an SPD
 `HM`, and the boundary data enters through the same kernel, so `HB = -acc`
 falls straight out. `test_solution_cg` then solves `HM u = H.*f + HB g` with
 CG + IC(0) and compares to `u_exact`:
@@ -216,10 +216,6 @@ Assembly is cheap and scales linearly. The **host** factorisation does not:
 | 24 | 46,875 | 714k | 0.15 s | 362 s |
 | 32 | 107,811 | 1.6M | 0.4 s | > 10 min (killed) |
 
-Eigen's `SimplicialLLT` is scalar, single-threaded and AMD-ordered — fine for
-validation, hopeless past N ~ 24. **Treat the host path as a correctness
-oracle only.**
-
 Projecting the assembly to the benchmark's N = 128: 6.44M dofs, ~98M nonzeros,
 ~1.2 GB for `HM` itself. That part is comfortable. The open question is
 factorisation fill-in, which is what the cuDSS run has to answer, and which is
@@ -227,34 +223,24 @@ the fork in the road between Tier 1 and Tier 2.
 
 ## Not yet verified
 
-- **The cuDSS backend has never been compiled or run.** Neither cuDSS nor a GPU
-  is present on the login node, and cuDSS does not ship with the `cuda/13.0`
-  module — it needs a separate install. The code follows the documented
-  `cudssCreate` / `ANALYSIS` / `FACTORIZATION` / `SOLVE` flow with
+- **CUDA Backend needs some tuning** Due to the Talapas HPC Cluster not yet having CUDSS for solving, most kernel's are written with large data-block solving in mind, however further ports could be adapted once the cluster itself is updated for newer versions of CUDA.
   `CUDSS_MTYPE_SPD` + `CUDSS_MVIEW_UPPER`, but expect to debug it on first run.
-- **Nothing has been compared against Julia numerically.** `--dump` writes `HM`
-  as CSR for exactly that purpose, but `ops_bp5.jl` cannot currently run —
-  `var_3D_D2q_fast` and its `r`/`s` siblings are called and never defined. That
-  has to be fixed on the Julia side before rung 2 of the validation ladder is
-  possible. The checks above are self-consistency, not cross-validation.
+- **Codebase hasn't been compared in relation to Thase (.jl) and Basin (.cpp)** Simply put, many techniques invoked in this project are inspired, however due to this still being a massive WIP, most operators and the final assembly have yet to be tested in relation to these two concrete written versions. 
 
 ## Next
 
-1. `HB` in 3-D — the boundary-data lifting operator, and `bdry_vec_strip!`.
+1. `HB` in 3-D, boundary-data lifting operator, and `bdry_vec_strip!`.
    Gives a physically meaningful right-hand side instead of a manufactured one.
    **The 1-D version now exists** (`converge.cpp`, `build()`), and it showed the
    construction is simpler than it looks: the SAT acts on `(u_f - g_f)`, so the
    same kernel serves both halves and `HB = -acc`. Scaling that up needs two
-   changes in `assemble.cpp` — promote `Z` from a local to an `Operators`
+   changes in `assemble.cpp`, meaning promote `Z` from a local to an `Operators`
    member, and build the rectangular `lift_f = e_f sJ_f H_f` alongside the
    square `face_mass`. Neither touches `HM`.
 2. `computetraction` on face 0.
 3. Rate-and-state friction as a CUDA kernel, one thread per fault node.
-   Port `newtbndv_vectorized`, but fix the convergence test — `ops_bp5.jl:1818`
-   reads `abs.(dV .< tol)`, so `abs` wraps the comparison rather than `dV` and
-   the test accepts any negative Newton step.
-4. Tsit5 with step rejection.
-5. Measure the N = 128 factorisation. If the fill fits, build the fault DtN
+   Port `newtbndv_vectorized`, but working on a convergence test inspired from line `ops_bp5.jl:1818` on Thrase.
+4. Measure the N = 128 factorisation. If the fill fits, build the fault DtN
    precompute (Tier 3). If not, go multiblock (Tier 2).
 
 ## Layout
