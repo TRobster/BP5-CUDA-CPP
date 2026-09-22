@@ -1,5 +1,8 @@
 
 ```
+Status results for 1D Convergence test.
+
+
       N      ||e||_H    rate       max|e|    rate  iters   CG resid
       4   1.3744e-02       -   1.0482e-02       -      1    1.5e-16
       8   2.2327e-03    2.62   2.0097e-03    2.38      1    1.5e-16
