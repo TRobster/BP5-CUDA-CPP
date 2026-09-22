@@ -254,3 +254,12 @@ include/bp5/  sparse.hpp   CSR/kron/lift helpers over Eigen, index conventions
 src/          matching .cpp, plus factor_cudss.cu and its stub
 scripts/      submit.sh    SLURM
 ```
+
+### Cited Papers (still ongoing)
+
+https://ix.cs.uoregon.edu/~bae/resources/Erickson_Dunham_jgrb50593.pdf
+
+### Cited Works (main code backbone)
+
+https://github.com/zacc123/Thrase.jl/tree/main/src/3D
+https://github.com/josephmcl/basin
