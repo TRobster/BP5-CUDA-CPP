@@ -1,0 +1,49 @@
+### HOST: n0160.talapas.uoregon.edu
+### DATE: Fri Aug 21 19:03:01 UTC 2026
+### GPU:
+NVIDIA A100 80GB PCIe, 81920 MiB, 580.105.08
+### CPU: AMD EPYC 7413 24-Core Processor
+
+########## PART 1: IC(0) PRECONDITIONER ON HM ##########
+
+== assembly ==
+  grid      128^3
+  n         6440067
+  nnz(HM)   96898463   nnz(lower) 51669265
+
+== IC(0) factorisation ==
+  shift     0
+  result    OK
+  |L[i][i]|  min = 1.4267e-02   max = 4.1312e-02   max/min = 2.896e+00
+            healthy spread
+
+== preconditioner quality ==
+  trial 0   ||(M^-1 HM - I)x|| / ||x|| = 0.5430
+  trial 1   ||(M^-1 HM - I)x|| / ||x|| = 0.5327
+  trial 2   ||(M^-1 HM - I)x|| / ||x|| = 0.4793
+
+  worst     0.5430
+  reference 0.00 = perfect, 1.00 = useless; laplace2d IC(0) = 0.31
+
+IC(0) is weak here -- CG will converge slowly.
+
+
+########## PART 2: CG, tol=3e-8 (Thrase tolerance) ##########
+
+== CG on HM ==
+  grid 128^3   n = 6440067   nnz = 96898463   tol = 3.0e-08
+  plain CG       converged  iters = 527    ||r||/||b|| = 2.97e-08  err = 5.76e-05  0.948 s
+  CG + IC(0)     converged  iters = 160    ||r||/||b|| = 2.87e-08  err = 6.38e-05  0.960 s
+
+  wall-clock speedup from preconditioning: 0.99x
+
+
+########## PART 3: CG, tol=1e-10 ##########
+
+== CG on HM ==
+  grid 128^3   n = 6440067   nnz = 96898463   tol = 1.0e-10
+  plain CG       converged  iters = 1004   ||r||/||b|| = 9.91e-11  err = 2.28e-07  1.778 s
+  CG + IC(0)     converged  iters = 302    ||r||/||b|| = 9.70e-11  err = 1.76e-07  1.810 s
+
+  wall-clock speedup from preconditioning: 0.98x
+

@@ -1,0 +1,8 @@
+obj/
+*.o
+bp5_assemble
+test_cg
+test_conditioner
+test_converge
+test_hm_precond
+test_solution_cg
