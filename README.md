@@ -261,5 +261,5 @@ https://ix.cs.uoregon.edu/~bae/resources/Erickson_Dunham_jgrb50593.pdf
 
 ### Cited Works (main code backbone)
 
-https://github.com/zacc123/Thrase.jl/tree/main/src/3D
-https://github.com/josephmcl/basin
+# 1 https://github.com/zacc123/Thrase.jl/tree/main/src/3D
+# 2 https://github.com/josephmcl/basin
