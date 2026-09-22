@@ -80,7 +80,7 @@ Operators assemble(const Params& p, const Metrics& m) {
     BS[a] = lift3(d, o.d1[a].BS, g);
   }
 
-  // ---------------------------------------------------------------- volume --
+  // volume
   // A[i][j] = (1/J) * ( sum_a C[a][i][a][j] D2_a + sum_{a!=b} C[a][i][b][j] D_a D_b )
   //
   // The diagonal terms use the narrow-stencil second derivative; the mixed
@@ -105,7 +105,7 @@ Operators assemble(const Params& p, const Metrics& m) {
       o.A[i][j] = invJ * acc;
     }
 
-  // ------------------------------------------------------------- traction --
+  // traction
   // T^f[i][j] = sign_f * (1/sJ_f) * P_f * sum_b C[a][i][b][j] * op_b
   // with op_a = BS_a (boundary derivative) and op_b = D1_b for b != a.
   // ops_bp5.jl:674-749.
@@ -125,7 +125,7 @@ Operators assemble(const Params& p, const Metrics& m) {
       }
   }
 
-  // -------------------------------------------------------------- penalty --
+  //penalty  
   // Z^f[i][j] = (beta * d / (h_a * sJ_f)) * C[a][i][a][j] * P_f
   //
   // The general form is (beta*d/h_a) * sJI_f * sum_pq N_p C[p][i][q][j] N_q.
@@ -141,7 +141,7 @@ Operators assemble(const Params& p, const Metrics& m) {
       for (int j = 0; j < 3; ++j) Z[f][i][j] = Sp((pre * m.C[a][i][a][j]) * P);
   }
 
-  // ------------------------------------------------------------------ SAT --
+  // SAT 
   // S[i][j] = JHI * (  sum_{f in {0,1}} (T^f[j][i] - Z^f[j][i])^T * M_f
   //                  - sum_{f in {2..5}} M_f * T^f[i][j] )
   Sp M[NFACE];
@@ -163,7 +163,7 @@ Operators assemble(const Params& p, const Metrics& m) {
       o.S[i][j] = Sp(JHI * acc);
     }
 
-  // ------------------------------------------------------------------- HM --
+  // HM
   // HM = Hn * (A + S) with Hn = -H. The negation is what makes the result
   // positive definite rather than negative definite, so Cholesky applies.
   Sp Hn = diag([&] {
