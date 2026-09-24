@@ -48,6 +48,15 @@ struct Mms {
   double u(double x) const;
 };
 
+struct Mms2D 
+{
+  double mu;
+
+  double f(double x, double y) const;
+  double ux(double x, double y) const; 
+  double uy(double x, double y) const; 
+};
+
 // Node coordinates on the reference interval: x_i = -1 + 2i/N.
 std::vector<double> nodes(const Sbp1D& d);
 
